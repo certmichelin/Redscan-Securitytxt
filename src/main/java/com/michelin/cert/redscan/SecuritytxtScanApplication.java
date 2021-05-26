@@ -111,6 +111,7 @@ public class SecuritytxtScanApplication {
     HttpService serviceMessage = new HttpService(message);
     LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Checking Security text on : %s", serviceMessage.getDomain()));
     try {
+      
       String wellKnowUrl = String.format("%s://%s:%s/.well-known/security.txt",
               serviceMessage.getProtocol(),
               serviceMessage.getDomain(),
@@ -120,7 +121,7 @@ public class SecuritytxtScanApplication {
               serviceMessage.getDomain(),
               serviceMessage.getPort());
       URL wk = new URL(wellKnowUrl);
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("locating content"));
+      LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating content"));
       HttpURLConnection http = (HttpURLConnection) wk.openConnection();
       http.setRequestProperty("Content-Type", "text/plain");
       http.connect();
@@ -128,7 +129,7 @@ public class SecuritytxtScanApplication {
       if (responseCode == 200) {
         insertResult(serviceMessage.getDomain(), serviceMessage.getPort(), contentParser(wk));       
       } else {
-        LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("locating content under root directory"));
+        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating content under root directory"));
         URL root = new URL(rootUrl);
         http = (HttpURLConnection) root.openConnection();
         int rootResponseCode = http.getResponseCode();
