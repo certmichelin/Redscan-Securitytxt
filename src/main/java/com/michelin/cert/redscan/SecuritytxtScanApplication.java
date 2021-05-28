@@ -7,18 +7,9 @@ package com.michelin.cert.redscan;
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
 import com.michelin.cert.redscan.utils.models.HttpService;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.SocketException;
-import java.net.URL;
-import java.net.URLConnection;
-
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
 import org.apache.logging.log4j.LogManager;
-import org.json.JSONObject;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,50 +38,21 @@ public class SecuritytxtScanApplication {
   public static void main(String[] args) {
     SpringApplication.run(SecuritytxtScanApplication.class, args);
   }
-
-  /**
-   * Datalake shortcut for upserting
-   * @param domain The domain
-   * @param port The port...
-   * @param res either the content of the file or notFound
-   */
-  public void insertResult(String domain, String port,String res) {
-    
-    try {
-      datalakeConfig.upsertHttpServiceField(domain, port, "securitytxt", res);
-    } catch (DatalakeStorageException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Data lake storage exception %s", ex.toString()));
-    }
-  }
    
   /**
-   * Check Securtiy txt content.
-   * @param url refer to the file url path
-   * @return txtJson formated JSOn security txt file.
+   * Check that the file is at minima a security.txt.
+   * @param content is the content of the response body. Shloud be a securitytxt
+   * @return boolean with indicate if the file is possibly a security.txt
    */
-  public String contentParser(URL url) {
-    JSONObject txtJson = new JSONObject();
-    LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Parsing content"));
-    StringBuilder content = new StringBuilder();
-    try {
-      URLConnection hurl = url.openConnection();
-      hurl.setRequestProperty("Content-Type", "text/plain"); 
-      BufferedReader in = new BufferedReader(new InputStreamReader(hurl.getInputStream()));
-      if (in != null ) {
-        String inputLine;
-        while (( inputLine = in.readLine()) != null) {
-          if (!inputLine.equals(System.getProperty("line.separator"))) {
-            content.append(inputLine);
-          }
-        }
-      } 
-      
-    } catch (MalformedURLException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("%s thrown Exption : %s",ex.getClass(),ex.toString()));
-    } catch (IOException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("%s thrown Exption : %s",ex.getClass(),ex.toString()));
+  public boolean contentCheck(String content) {
+    //String[] unsigned_content = {"Contact:", "Encryption", "Policy", "Acknowledgments", "Expires"};
+    //String[] signed_content = {"Hash", "Canonical", "Contact", "Encryption", "Policy", "Acknowledgments", "Expires", "Version", "BEGIN PGP SINGATURE"};
+    
+    boolean valid = false;
+    if (content.contains("Contact:")) {
+      valid = true;
     }
-    return content.toString();
+    return valid;
   }
   /**
    * Message executor.
@@ -102,38 +64,39 @@ public class SecuritytxtScanApplication {
     HttpService serviceMessage = new HttpService(message);
     LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Checking Security text on : %s", serviceMessage.getDomain()));
     try {
-      
-      String wellKnowUrl = String.format("%s://%s:%s/.well-known/security.txt",
-              serviceMessage.getProtocol(),
-              serviceMessage.getDomain(),
-              serviceMessage.getPort());
-      String rootUrl = String.format("%s://%s:%s/security.txt",
-              serviceMessage.getProtocol(),
-              serviceMessage.getDomain(),
-              serviceMessage.getPort());
-      URL wk = new URL(wellKnowUrl);
-      LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating content"));
-      HttpURLConnection http = (HttpURLConnection) wk.openConnection();
-      http.setRequestProperty("Content-Type", "text/plain");
-      http.connect();
-      int responseCode = http.getResponseCode();
-      if (responseCode == 200) {
-        insertResult(serviceMessage.getDomain(), serviceMessage.getPort(), contentParser(wk));       
-      } else {
-        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating content under root directory"));
-        URL root = new URL(rootUrl);
-        http = (HttpURLConnection) root.openConnection();
-        int rootResponseCode = http.getResponseCode();
-        if (rootResponseCode == 200) {
-          insertResult(serviceMessage.getDomain(), serviceMessage.getPort(), contentParser(root));
+      String wellKnowUrl = String.format("%s/.well-known/security.txt", serviceMessage.toUrl());
+      String rootUrl = String.format("%s/security.txt", serviceMessage.toUrl());
+      LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating security.txt at %s", wellKnowUrl));
+      HttpResponse<String> response = Unirest.get(wellKnowUrl).asString();
+      if (response.getStatus() != 200) {
+        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Cannot find security txt at %s %d",wellKnowUrl, response.getStatus()));
+        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("locating security.txt at %s", rootUrl ));
+        response = Unirest.get(rootUrl).asString();
+        if (response.getStatus() != 200) {
+          LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Cannot find security txt at %s %d",rootUrl, response.getStatus()));
         } else {
-          insertResult(serviceMessage.getDomain(), serviceMessage.getPort(), "notFound");
-        }      
-      }      
-    } catch (MalformedURLException | SocketException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("%s thrown Exption : %s",ex.getClass(),ex.toString()));
-    } catch (IOException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("%s thrown Exption : %s",ex.getClass(),ex.toString()));
+          LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Found security.txt at %s", rootUrl));
+          if (contentCheck(response.getBody())) {
+            LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Upserting http service field with securitytxt content : %s", response.getBody()));
+            datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), "securitytxt", response.getBody());
+          } else {
+            LogManager.getLogger(SecuritytxtScanApplication.class).warn(String.format("Security.txt has not passed content checker : %s", response.getBody()));
+          }
+          
+        }
+      } else {
+        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Found security.txt at %s", wellKnowUrl));
+        if (contentCheck(response.getBody())) {
+          LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Upserting http service field with securitytxt content : %s", response.getBody()));
+          datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), "securitytxt", response.getBody());
+        } else {
+          LogManager.getLogger(SecuritytxtScanApplication.class).warn(String.format("Security.txt has not passed content checker : %s", response.getBody()));
+        }
+      }
+            
+    } catch (DatalakeStorageException ex) {
+      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Exception with datalake : %s", ex));
+      
     }
     
   }
