@@ -6,19 +6,21 @@ package com.michelin.cert.redscan;
 
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
 import com.michelin.cert.redscan.utils.models.HttpService;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.URL;
 import java.net.URLConnection;
+
 import org.apache.logging.log4j.LogManager;
 import org.json.JSONObject;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -33,20 +35,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class SecuritytxtScanApplication {
 
-  //Only required if pushing data to queues
-  private final RabbitTemplate rabbitTemplate;
-  
   @Autowired
   private DatalakeConfig datalakeConfig;
 
-  /**
-   * Constructor to init rabbit template. Only required if pushing data to queues
-   *
-   * @param rabbitTemplate Rabbit template.
-   */
-  public SecuritytxtScanApplication(RabbitTemplate rabbitTemplate) {
-    this.rabbitTemplate = rabbitTemplate;
-  }
 
   /**
    * RedScan Main methods.
