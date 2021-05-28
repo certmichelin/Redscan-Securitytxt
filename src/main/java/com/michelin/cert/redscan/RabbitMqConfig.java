@@ -22,8 +22,6 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class RabbitMqConfig extends RabbitMqBaseConfig {
-
-  //TODO: Configure interaction.
   
   ///**
   // * QUEUE_HTTP_services.
