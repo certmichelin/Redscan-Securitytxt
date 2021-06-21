@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.michelin.cert.redscan</groupId>
-    <artifactId>Redscan-Securitytxt</artifactId>
-    <version>2.0.1</version>
+    <artifactId>redscan-securitytxt</artifactId>
+    <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     
     <properties>
@@ -14,7 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     
         <!-- Define dependencies versions -->
-        <redscan-utils.version>2.0.7</redscan-utils.version>
+        <redscan-utils.version>3.0.0</redscan-utils.version>
         <log4j-layout-template-json.version>2.14.0</log4j-layout-template-json.version>
 
         <!-- Define test dependencies versions -->
