@@ -19,6 +19,8 @@ package com.michelin.cert.redscan;
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
 import com.michelin.cert.redscan.utils.models.HttpService;
 
+import javax.annotation.PostConstruct;
+
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 
@@ -41,6 +43,15 @@ public class SecuritytxtScanApplication {
 
   @Autowired
   private DatalakeConfig datalakeConfig;
+
+  /**
+   * Initialize Unirest options.
+   */
+  @PostConstruct
+  public void configureUnirest() {
+    Unirest.config().verifySsl(false);
+    Unirest.config().followRedirects(false);
+  }
 
   /**
    * RedScan Main methods.
@@ -79,7 +90,7 @@ public class SecuritytxtScanApplication {
       LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Datalake Strorage exception : %s", ex));
     } catch (Exception ex) {
       LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Exception : %s", ex));
-    } 
+    }
   }
 
   private String retrieveSecurityTxtContent(String url) {
