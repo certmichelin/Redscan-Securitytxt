@@ -81,10 +81,10 @@ public class SecuritytxtScanApplication {
 
       if (result != null) {
         LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Found security.txt at %s", url));
-        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), "securitytxt", result);
+        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), serviceMessage.getProtocol(), "securitytxt", result);
       } else {
         LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Security text not found %s", serviceMessage.toUrl()));
-        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), "securitytxt", "not found");
+        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), serviceMessage.getProtocol(), "securitytxt", "not found");
       }
     } catch (DatalakeStorageException ex) {
       LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Datalake Strorage exception : %s", ex));
