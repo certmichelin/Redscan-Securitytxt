@@ -17,7 +17,7 @@
 package com.michelin.cert.redscan;
 
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
-import com.michelin.cert.redscan.utils.models.HttpService;
+import com.michelin.cert.redscan.utils.models.services.HttpService;
 
 import javax.annotation.PostConstruct;
 
@@ -27,7 +27,6 @@ import kong.unirest.Unirest;
 import org.apache.logging.log4j.LogManager;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -40,9 +39,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class SecuritytxtScanApplication {
-
-  @Autowired
-  private DatalakeConfig datalakeConfig;
 
   /**
    * Initialize Unirest options.
@@ -69,27 +65,32 @@ public class SecuritytxtScanApplication {
    */
   @RabbitListener(queues = {RabbitMqConfig.QUEUE_HTTP_SERVICES})
   public void receiveMessage(String message) {
-    HttpService serviceMessage = new HttpService(message);
-    LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Checking Security text on : %s", serviceMessage.toUrl()));
+    HttpService serviceMessage = new HttpService();
     try {
-      String url = String.format("%s/.well-known/security.txt", serviceMessage.toUrl());
-      String result = retrieveSecurityTxtContent(url);
-      if (result == null) {
-        url = String.format("%s/security.txt", serviceMessage.toUrl());
-        result = retrieveSecurityTxtContent(url);
-      }
+      serviceMessage.fromJson(message);
+      LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Checking Security text on : %s", serviceMessage.toUrl()));
+      try {
+        String url = String.format("%s/.well-known/security.txt", serviceMessage.toUrl());
+        String result = retrieveSecurityTxtContent(url);
+        if (result == null) {
+          url = String.format("%s/security.txt", serviceMessage.toUrl());
+          result = retrieveSecurityTxtContent(url);
+        }
 
-      if (result != null) {
-        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Found security.txt at %s", url));
-        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), serviceMessage.getProtocol(), "securitytxt", result);
-      } else {
-        LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Security text not found %s", serviceMessage.toUrl()));
-        datalakeConfig.upsertHttpServiceField(serviceMessage.getDomain(), serviceMessage.getPort(), serviceMessage.getProtocol(), "securitytxt", "not found");
+        if (result != null) {
+          LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Found security.txt at %s", url));
+          serviceMessage.upsertField("securitytxt", result);
+        } else {
+          LogManager.getLogger(SecuritytxtScanApplication.class).info(String.format("Security text not found %s", serviceMessage.toUrl()));
+          serviceMessage.upsertField("securitytxt", "not found");
+        }
+      } catch (DatalakeStorageException ex) {
+        LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Datalake Strorage exception : %s", ex));
+      } catch (Exception ex) {
+        LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Exception : %s", ex));
       }
-    } catch (DatalakeStorageException ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Datalake Strorage exception : %s", ex));
     } catch (Exception ex) {
-      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("Exception : %s", ex));
+      LogManager.getLogger(SecuritytxtScanApplication.class).error(String.format("General Exception : %s", ex));
     }
   }
 
