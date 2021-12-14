@@ -14,7 +14,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     
         <!-- Define dependencies versions -->
-        <redscan-utils.version>4.0.2</redscan-utils.version>
+        <redscan-utils.version>4.2.0</redscan-utils.version>
+        <log4j2.version>2.15.0</log4j2.version>
         
         <!-- Define test dependencies versions -->
         
